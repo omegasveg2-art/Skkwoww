@@ -40,7 +40,7 @@ jobs:
 
       - name: fetch r8 (minify/obfuscate)
         run: |
-          curl -sSL -o r8.jar "https://repo1.maven.org/maven2/com/android/tools/r8/8.2.42/r8-8.2.42.jar"
+          curl -sSL -o r8.jar "https://maven.google.com/com/android/tools/r8/9.3.35/r8-9.3.35.jar"
           echo "R8_JAR=$PWD/r8.jar" >> $GITHUB_ENV
 
       - name: build native core (cf_core)
@@ -58,4 +58,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: astral-exe-apk
-          path: cf_esp/cf_esp.apk
+          path: cf_esp/cf_esp.apk      
