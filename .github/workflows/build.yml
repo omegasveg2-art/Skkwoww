@@ -1,0 +1,61 @@
+name: build apk
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: unzip source (if the repo holds a zip instead of the extracted tree)
+        run: |
+          if [ ! -d cf_esp ] && [ -f astral_cf.zip ]; then unzip -o astral_cf.zip; fi
+          test -d cf_esp
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: install android sdk cmdline-tools
+        run: |
+          SDK=$HOME/android-sdk
+          mkdir -p "$SDK/cmdline-tools"
+          curl -sSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdtools.zip
+          unzip -q cmdtools.zip -d "$SDK/cmdline-tools"
+          mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK" >> $GITHUB_ENV
+          echo "$SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$SDK/platform-tools" >> $GITHUB_PATH
+
+      - name: install platform + build-tools + ndk
+        run: |
+          yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses > /dev/null
+          sdkmanager --sdk_root="$ANDROID_HOME" "platforms;android-33" "build-tools;34.0.0" "ndk;26.1.10909125"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: fetch r8 (minify/obfuscate)
+        run: |
+          curl -sSL -o r8.jar "https://repo1.maven.org/maven2/com/android/tools/r8/8.2.42/r8-8.2.42.jar"
+          echo "R8_JAR=$PWD/r8.jar" >> $GITHUB_ENV
+
+      - name: build native core (cf_core)
+        run: |
+          cd cf_esp
+          chmod +x build_core.sh
+          ./build_core.sh
+
+      - name: build apk
+        run: |
+          cd cf_esp
+          chmod +x build_apk.sh
+          R8_JAR="$R8_JAR" ./build_apk.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: astral-exe-apk
+          path: cf_esp/cf_esp.apk
